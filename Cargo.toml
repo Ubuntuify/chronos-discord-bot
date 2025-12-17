@@ -1,0 +1,17 @@
+[package]
+name = "chronos-discord-bot"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+chrono = "0.4.42"
+regex = "1.12.2"
+tzfile = "0.1.3"
+
+[dependencies.poise]
+version = "0.6.1"
+features = []
+
+[dependencies.tokio]
+version = "1.48.0"
+features = ["macros", "rt-multi-thread"]
