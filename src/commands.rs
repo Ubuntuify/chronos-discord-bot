@@ -11,7 +11,7 @@ mod time;
 */
 
 #[poise::command(prefix_command)]
-pub async fn register(ctx: crate::Context<'_>) -> Result<(), crate::Error> {
+async fn register(ctx: crate::Context<'_>) -> Result<(), crate::Error> {
     poise::builtins::register_application_commands_buttons(ctx).await?;
     Ok(())
 }
@@ -20,7 +20,10 @@ pub async fn register(ctx: crate::Context<'_>) -> Result<(), crate::Error> {
 * Returns all public (as in, registered globally) commands
 */
 pub fn public() -> Vec<poise::Command<Data, Error>> {
-    vec![crate::commands::time::now()]
+    vec![
+        crate::commands::time::now(),
+        crate::commands::time::set_timezone(),
+    ]
 }
 
 /***

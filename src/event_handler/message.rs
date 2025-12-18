@@ -1,45 +1,50 @@
-use chrono::{DateTime, NaiveDateTime, NaiveTime, Utc};
-use poise::serenity_prelude::{self as serenity, FormattedTimestampStyle, Message};
-use poise::serenity_prelude::{EventHandler, FormattedTimestamp};
-use regex::Regex;
+use poise::serenity_prelude::{
+    self as serenity, FormattedTimestamp, FormattedTimestampStyle, MessageBuilder,
+};
 use tzfile::Tz;
 
-use crate::event_handler::Handler;
+use crate::{Error, time::get_closest_future_time};
 
-#[serenity::async_trait]
-impl EventHandler for Handler {
-    async fn message(&self, context: &serenity::Context, message: Message) {
-        println!("Message detected.");
+mod regex_matching;
 
-        // See the crate `Regex`'s documentation for how this works.
-        let haystack = message.content.clone();
-        let re1 = Regex::new("^([0-1]?[0-9]|2[0-3]):([0-5][0-9])$").unwrap(); // should match anything
-        // resembling 24/12hr time, like 12:00 or 22:00.
+pub async fn translate_time_into_timestamp(
+    ctx: &serenity::Context,
+    message: &serenity::Message,
+    data: &crate::Data,
+) {
+    if message.author.id == data.bot_id {
+        return;
+    };
 
-        let capture_str = re1.captures(&haystack);
-        if let Some(capture) = capture_str {
-            let hour: u32 = capture[1].to_string().parse().unwrap();
-            let minute: u32 = capture[2].to_string().parse().unwrap();
+    if let Some(time) = regex_matching::match_simple_time(message.content.clone()) {
+        let time = get_closest_future_time(time, Tz::local().unwrap()).unwrap();
 
-            let user_time_zone = Tz::local().unwrap(); // TODO: hardcode for
-            // now to build functionality.
+        let _ = send_timestamp_message(
+            ctx,
+            message,
+            time.into(),
+            Some("Time may be inaccurate, please report if this is not the time you meant."),
+        )
+        .await;
+    };
+}
 
-            let date_time = Utc::now()
-                .with_timezone(&&user_time_zone)
-                .with_time(NaiveTime::from_hms_opt(hour, minute, 0).unwrap())
-                .unwrap(); // unwrap is allowed
-            // here as the RegEx should make sure that the input is valid already.
+async fn send_timestamp_message(
+    ctx: &serenity::Context,
+    message: &serenity::Message,
+    timestamp: serenity::Timestamp,
+    warning: Option<&str>,
+) -> Result<(), Error> {
+    let response = MessageBuilder::new()
+        .push_line(
+            (FormattedTimestamp::new(timestamp, Some(FormattedTimestampStyle::LongDateTime)))
+                .to_string(),
+        )
+        .push("-# ")
+        .push(warning.unwrap_or_default())
+        .to_string();
 
-            let timestamp: FormattedTimestamp = FormattedTimestamp::new(
-                date_time.into(),
-                Some(FormattedTimestampStyle::ShortDateTime),
-            );
+    let _ = message.reply(ctx, response).await;
 
-            let response = format!("Timestamp attempt: {}", timestamp);
-
-            let _ = message.reply(context, response).await;
-        };
-
-        let re2 = Regex::new("^([0-1]?[0-9])(am|pm)$").unwrap();
-    }
+    Ok(())
 }
