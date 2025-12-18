@@ -1,25 +1,23 @@
-use std::path::Path;
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use poise::{
     Framework,
     serenity_prelude::{self as serenity},
 };
+use tokio::sync::RwLock;
+
+use crate::data::Data;
 
 extern crate tracing;
-
-struct Data {
-    bot_id: serenity::UserId,
-    time_zone: Option<tzfile::Tz>,
-}
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, Data, Error>;
 
 mod commands;
+mod data;
 mod event_handler;
 mod structs;
 mod time;
-mod utility;
 
 #[tokio::main]
 async fn main() {
@@ -49,12 +47,12 @@ async fn main() {
             },
             ..Default::default()
         })
-        .setup(|_ctx, ready, framework| {
+        .setup(|_ctx, ready, _framework| {
             Box::pin(async move {
                 //poise::builtins::register_globally(ctx, &framework.options().commands).await?;
                 Ok(Data {
                     bot_id: ready.user.id,
-                    time_zone: None,
+                    user_data: Arc::new(RwLock::new(HashMap::new())),
                 })
             })
         })

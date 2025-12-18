@@ -4,6 +4,7 @@
 
 use crate::{Data, Error};
 
+mod bot;
 mod time;
 
 /***
