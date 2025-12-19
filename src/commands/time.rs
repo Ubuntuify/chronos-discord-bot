@@ -1,19 +1,30 @@
 use poise::serenity_prelude::{
-    self as serenity, CreateEmbed, FormattedTimestamp, Mentionable, Message, MessageBuilder,
-    OnlineStatus, UserId,
+    self as serenity, FormattedTimestamp, Mentionable, MessageBuilder, UserId,
 };
 
-use crate::structs::user_data::UserData;
+use crate::structs::data::UserData;
 
-#[poise::command(slash_command)]
-pub async fn now(ctx: crate::Context<'_>, ephemeral: bool) -> Result<(), crate::Error> {
+#[poise::command(slash_command, rename = "time now")]
+pub async fn now(ctx: crate::Context<'_>, ephemeral: Option<bool>) -> Result<(), crate::Error> {
     let response = format!("Current time is: {}", FormattedTimestamp::now());
+
+    let user_data = &ctx.data().user_data;
+    let user_data_lock = user_data.read().await;
+
+    let default = match user_data_lock.get(&ctx.author().id) {
+        Some(data) => data.prefers_ephemeral,
+        None => false,
+    };
+
+    if ephemeral.unwrap_or(default) {
+        let _ = ctx.defer_ephemeral().await;
+    }
 
     ctx.say(response).await?;
     Ok(())
 }
 
-#[poise::command(slash_command)]
+#[poise::command(slash_command, rename = "timezone set")]
 pub async fn set_timezone(
     ctx: crate::Context<'_>,
     #[description = "The user you want to set the timezone for."] user: Option<serenity::Member>,

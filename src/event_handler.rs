@@ -29,8 +29,13 @@ pub async fn event_handler(
         serenity::FullEvent::Message { new_message } => {
             let _enter = message_span.enter();
 
-            crate::event_handler::message::translate_time_into_timestamp(ctx, new_message, data)
-                .await;
+            let timestamp_future = crate::event_handler::message::translate_time_into_timestamp(
+                ctx,
+                &new_message,
+                &data,
+            );
+
+            tokio::join!(timestamp_future);
 
             Ok(())
         }

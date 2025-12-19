@@ -1,10 +1,12 @@
-use std::{collections::HashMap, path::Path, sync::Arc};
+use std::{
+    collections::HashMap,
+    sync::{Arc, RwLock},
+};
 
 use poise::{
     Framework,
     serenity_prelude::{self as serenity},
 };
-use tokio::sync::RwLock;
 
 use crate::data::Data;
 
@@ -16,6 +18,7 @@ type Context<'a> = poise::Context<'a, Data, Error>;
 mod commands;
 mod data;
 mod event_handler;
+mod fs;
 mod structs;
 mod time;
 
@@ -28,12 +31,6 @@ async fn main() {
         | serenity::GatewayIntents::DIRECT_MESSAGES
         | serenity::GatewayIntents::GUILDS
         | serenity::GatewayIntents::MESSAGE_CONTENT;
-
-    if !Path::new("/usr/share/zoneinfo").exists() {
-        panic!(
-            "No timezone information found on system, cannot continue... If you're on a non-standard system, such as NixOS, please symlink your timezone information at /usr/share/zoneinfo"
-        )
-    };
 
     println!("Starting bot...");
 
@@ -53,6 +50,7 @@ async fn main() {
                 Ok(Data {
                     bot_id: ready.user.id,
                     user_data: Arc::new(RwLock::new(HashMap::new())),
+                    guild_data: Arc::new(RwLock::new(HashMap::new())),
                 })
             })
         })

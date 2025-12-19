@@ -1,11 +1,5 @@
 use chrono_tz::Tz;
-use std::{
-    collections::HashMap,
-    sync::Arc,
-    thread::{self, ScopedJoinHandle},
-};
-use tokio::sync::RwLock;
-use tracing::{debug, info};
+use std::collections::HashMap;
 
 use poise::serenity_prelude::{
     self as serenity, FormattedTimestamp, FormattedTimestampStyle, MessageBuilder, Timestamp,
@@ -14,7 +8,7 @@ use poise::serenity_prelude::{
 
 use crate::{
     Error,
-    structs::user_data::{self, UserData},
+    structs::data::UserData,
     time::{get_closest_future_time, get_closest_future_time_12hr},
 };
 
@@ -45,7 +39,10 @@ pub async fn translate_time_into_timestamp(
         let user_data = user_data.await;
         let tz = match get_time_zone(&user_data, &message.author.id).await {
             Some(tz) => tz,
-            None => return Ok(()),
+            None => {
+                let _ = helpful_messages::no_time_zone(ctx, message).await;
+                return Ok(());
+            }
         };
 
         timestamp = get_closest_future_time(time, tz)?.into();
@@ -53,7 +50,10 @@ pub async fn translate_time_into_timestamp(
         let user_data = user_data.await;
         let tz = match get_time_zone(&user_data, &message.author.id).await {
             Some(tz) => tz,
-            None => return Ok(()),
+            None => {
+                let _ = helpful_messages::no_time_zone(ctx, message).await;
+                return Ok(());
+            }
         };
 
         match is_24hr_clock {
@@ -63,7 +63,7 @@ pub async fn translate_time_into_timestamp(
     }
 
     if timestamp == Timestamp::from_unix_timestamp(0)? {
-        return Ok(());
+        return Ok(()); // it's not being set, so abort.
     }
 
     let _ = send_timestamp_message(
