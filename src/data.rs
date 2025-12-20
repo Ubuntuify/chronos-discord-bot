@@ -1,4 +1,6 @@
-use tracing::info;
+use tracing::{info, warn};
+
+use tokio::io::AsyncWriteExt;
 
 pub use crate::structs::data::Data;
 
@@ -17,7 +19,26 @@ pub fn get_data_path() -> Box<std::path::Path> {
 }
 
 impl Data {
-    pub async fn initialize_data(&self) -> Result<(), crate::Error> {
-        Ok(())
+    #[tracing::instrument(skip(self))]
+    pub async fn initialize_data(&self) -> Result<(), std::io::Error> {
+        let path = &self.data_path.to_owned();
+
+        const EMPTY_JSON: &[u8] = "{}".as_bytes();
+
+        let user_data_path = path.join("user_data.json");
+
+        if !user_data_path.exists() {
+            warn!(
+                "User data file does not exist, creating one now; if one was provided, please make sure the following path exists. {}",
+                user_data_path.to_str().unwrap().to_string()
+            );
+
+            let mut file = tokio::fs::File::create_new(&user_data_path).await?;
+            let _ = file.write(EMPTY_JSON).await;
+        };
+
+        self.import_user_data(user_data_path.into()).await
+
+        // TODO: add guild data later
     }
 }

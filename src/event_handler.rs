@@ -3,7 +3,6 @@ use poise::serenity_prelude as serenity;
 use tracing::{Level, error, info, span, warn};
 
 mod message;
-mod ready;
 
 pub async fn event_handler(
     ctx: &serenity::Context,
@@ -26,7 +25,7 @@ pub async fn event_handler(
                 data_about_bot.user.name, PKG_VERSION, PKG_NAME
             );
 
-            let data_future = ready::load_data(data);
+            let data_future = data.initialize_data();
 
             info!("Starting to load (if available) saved guild and user data...");
 

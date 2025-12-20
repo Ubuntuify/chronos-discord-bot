@@ -102,7 +102,7 @@ pub async fn context_get_user_time(
             .format("%A, %d %B %Y at %r")
             .to_string();
 
-        let text = format!("It is currently {} for {}.", now, user.mention());
+        let text = format!("It is currently __{}__ for {}.", now, user.mention());
         let _ = ctx.reply(text).await;
     } else {
         let error_msg =
