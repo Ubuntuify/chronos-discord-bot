@@ -48,12 +48,7 @@ async fn main() {
         .setup(|_ctx, ready, _framework| {
             Box::pin(async move {
                 //poise::builtins::register_globally(ctx, &framework.options().commands).await?;
-                Ok(Data {
-                    bot_id: ready.user.id,
-                    data_path: crate::data::get_data_path(),
-                    user_data: Arc::new(RwLock::new(HashMap::new())),
-                    guild_data: Arc::new(RwLock::new(HashMap::new())),
-                })
+                Ok(Data::new(ready.user.id))
             })
         })
         .build();

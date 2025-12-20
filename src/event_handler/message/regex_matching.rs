@@ -5,7 +5,7 @@ use tracing::{debug, info, warn};
 use crate::structs::regex_time::TimeClue;
 
 #[tracing::instrument(skip(haystack))]
-pub fn match_simple_time(haystack: &String) -> Option<NaiveTime> {
+pub fn match_simple_time(haystack: &String) -> Option<(NaiveTime, bool)> {
     let regex = Regex::new(
         r"(?:\s|^)(?:(?<hr>[0-1]?[0-9]|2[0-3])(?::(?<mm>[0-5][0-9]))?(?::(?<ss>[0-5][0-9]))?\s?(?<clue>am|pm|nn|mn)?)"
     )
@@ -61,7 +61,7 @@ pub fn match_simple_time(haystack: &String) -> Option<NaiveTime> {
                 return None;
             }
 
-            NaiveTime::from_hms_opt(hour, minute, second)
+            Some((NaiveTime::from_hms_opt(hour, minute, second).unwrap(), true))
         }
         None => None,
     }

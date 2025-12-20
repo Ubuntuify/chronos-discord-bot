@@ -5,7 +5,10 @@ use poise::serenity_prelude::{
 
 use crate::structs::data::UserData;
 
-#[poise::command(slash_command, subcommands("now", "set_timezone"))]
+#[poise::command(
+    slash_command,
+    subcommands("now", "set_timezone", "slash_get_user_time")
+)]
 pub async fn time(_ctx: crate::Context<'_>) -> Result<(), crate::Error> {
     Ok(()) // shouldn't error and run anyways, it's a parent command that's not a slash one
 }
@@ -84,6 +87,22 @@ async fn set_timezone(
 
 #[poise::command(context_menu_command = "What time is it?")]
 pub async fn context_get_user_time(
+    ctx: crate::Context<'_>,
+    user: serenity::User,
+) -> Result<(), crate::Error> {
+    user_time_function(ctx, user).await
+}
+
+/// Get what time it is for a person, if they have their time zone set.
+#[poise::command(slash_command, rename = "user")]
+pub async fn slash_get_user_time(
+    ctx: crate::Context<'_>,
+    user: serenity::User,
+) -> Result<(), crate::Error> {
+    user_time_function(ctx, user).await
+}
+
+async fn user_time_function(
     ctx: crate::Context<'_>,
     user: serenity::User,
 ) -> Result<(), crate::Error> {

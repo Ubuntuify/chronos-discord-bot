@@ -1,14 +1,12 @@
 use chrono_tz::Tz;
-use std::collections::HashMap;
 
 use poise::serenity_prelude::{
     self as serenity, FormattedTimestamp, FormattedTimestampStyle, Mentionable, MessageBuilder,
-    Timestamp, UserId,
+    Timestamp,
 };
 
 use crate::{
     Error,
-    structs::data::UserData,
     time::{get_closest_future_time, get_closest_future_time_12hr},
 };
 
@@ -32,35 +30,37 @@ pub async fn translate_time_into_timestamp(
     let simple_time = regex_matching::match_simple_time(&message.content);
     let preposition_time = regex_matching::match_preposition_time(&message.content);
 
-    let user_data = data.user_data.read();
-
+    let user_data = data.get_owned_user_data(user_id);
     let notz_error = crate::strings::errors::NO_TIME_ZONE
         .replace("{user}", &message.author.mention().to_string());
 
-    if let Some(time) = simple_time {
-        let user_data = user_data.await;
-        let tz = match get_time_zone(&user_data, &message.author.id).await {
-            Some(tz) => tz,
+    let regex_vec = vec![simple_time, preposition_time];
+
+    let mut tz: Tz = Tz::UTC;
+
+    // means there's a match within the vector
+    if !&regex_vec.contains(&None) {
+        tz = match &user_data.await {
+            Some(d) => match d.time_zone {
+                Some(tz) => tz,
+                None => {
+                    let _ = message.reply(ctx, notz_error).await;
+                    return Ok(());
+                }
+            },
             None => {
                 let _ = message.reply(ctx, notz_error).await;
                 return Ok(());
             }
         };
+    }
 
-        timestamp = get_closest_future_time(time, tz)?.into();
-    } else if let Some((time, is_24hr_clock)) = preposition_time {
-        let user_data = user_data.await;
-        let tz = match get_time_zone(&user_data, &message.author.id).await {
-            Some(tz) => tz,
-            None => {
-                let _ = message.reply(ctx, notz_error).await;
-                return Ok(());
+    for time in regex_vec {
+        if let Some((time, is_24hr_time)) = time {
+            match is_24hr_time {
+                true => timestamp = get_closest_future_time(time, tz)?.into(),
+                false => timestamp = get_closest_future_time_12hr(time, tz).unwrap().into(),
             }
-        };
-
-        match is_24hr_clock {
-            true => timestamp = get_closest_future_time(time, tz)?.into(),
-            false => timestamp = get_closest_future_time_12hr(time, tz).unwrap().into(),
         }
     }
 
@@ -71,13 +71,6 @@ pub async fn translate_time_into_timestamp(
     let _ = send_timestamp_message(ctx, message, timestamp, None).await;
 
     Ok(())
-}
-
-async fn get_time_zone(user_data: &HashMap<UserId, UserData>, user: &UserId) -> Option<Tz> {
-    match user_data.get(user) {
-        Some(data) => data.time_zone,
-        None => None,
-    }
 }
 
 async fn send_timestamp_message(

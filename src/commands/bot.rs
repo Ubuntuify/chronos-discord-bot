@@ -8,7 +8,7 @@ pub async fn force_write(
     let data: &crate::data::Data = ctx.data();
     let path = match &path {
         Some(path) => Path::new(path),
-        None => &data.data_path.join("user_data.json"),
+        None => &data.data_path.join(crate::strings::filenames::USER_DATA),
     };
 
     let _ = data.save_user_data(path.into()).await;

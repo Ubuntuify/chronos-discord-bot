@@ -7,9 +7,9 @@ pub use crate::structs::data::Data;
 use std::path::Path;
 
 pub fn get_data_path() -> Box<std::path::Path> {
-    let key: &str = match cfg!(not(debug_assertions)) {
+    let key: &str = match cfg!(debug_assertions) {
         true => "XDG_DATA_HOME",
-        false => "pwd",
+        false => "PWD",
     };
 
     let path = std::env::var(key).unwrap();
@@ -27,7 +27,7 @@ impl Data {
         const EMPTY_JSON: &[u8] = "{}".as_bytes(); // this will be written to prevent serialization
         // errors
 
-        let user_data_path = path.join("user_data.json");
+        let user_data_path = path.join(crate::strings::filenames::USER_DATA);
 
         if !user_data_path.exists() {
             warn!(
