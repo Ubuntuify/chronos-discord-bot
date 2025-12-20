@@ -1,16 +1,15 @@
 use chrono_tz::Tz;
-use poise::serenity_prelude::{self as serenity, User, UserId};
+use poise::serenity_prelude::{self as serenity, UserId};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::io::Error;
 use std::sync::Arc;
 use tokio::fs;
 use tokio::sync::RwLock;
-
-type UserDataCollection = HashMap<serenity::UserId, UserData>;
+use tracing::warn;
 
 pub struct Data {
     pub bot_id: serenity::UserId,
+    pub data_path: Box<std::path::Path>,
     pub user_data: Arc<RwLock<HashMap<serenity::UserId, UserData>>>,
     pub guild_data: Arc<RwLock<HashMap<serenity::GuildId, GuildData>>>,
 }
@@ -24,13 +23,12 @@ impl Data {
         let user_data = self.user_data.clone();
         let user_data_lock = user_data.read().await;
 
-        match user_data_lock.get(&user) {
-            Some(user_data) => Some(user_data.to_owned()),
-            None => None,
-        }
+        user_data_lock
+            .get(&user)
+            .map(|user_data| user_data.to_owned())
     }
 
-    pub async fn save_user_data(&self, path: String) -> Result<(), std::io::Error> {
+    pub async fn save_user_data(&self, path: Box<std::path::Path>) -> Result<(), std::io::Error> {
         let user_data = Arc::clone(&self.user_data);
         let user_data_lock = user_data.read().await;
 
@@ -38,7 +36,8 @@ impl Data {
         fs::write(path, content.as_bytes()).await
     }
 
-    pub async fn import_user_data(&mut self, path: String) -> Result<(), std::io::Error> {
+    #[tracing::instrument(skip(self))]
+    pub async fn import_user_data(&self, path: Box<std::path::Path>) -> Result<(), std::io::Error> {
         let data = fs::read(path);
         let lock = self.user_data.write();
 
@@ -46,8 +45,13 @@ impl Data {
 
         let data = data?;
 
-        let serialized =
-            str::from_utf8(&data).expect("User data invalid, possible corruption? Closing down...");
+        if !lock.is_empty() {
+            warn!(
+                "User data isn't empty, data may be destroyed in this process, continuing anyways..."
+            );
+        };
+
+        let serialized = str::from_utf8(&data).expect("User data invalid, not in UTF-8 format! Stopping to prevent further corruption, please inspect the file itself.");
 
         let deserialized: HashMap<UserId, UserData> = serde_json::from_str(serialized).unwrap();
 
@@ -81,7 +85,7 @@ pub struct GuildData {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-enum GuildChannelRole {
+pub enum GuildChannelRole {
     TimestampChannel,
     None,
 }

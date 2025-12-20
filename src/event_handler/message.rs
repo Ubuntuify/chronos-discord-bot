@@ -2,8 +2,8 @@ use chrono_tz::Tz;
 use std::collections::HashMap;
 
 use poise::serenity_prelude::{
-    self as serenity, FormattedTimestamp, FormattedTimestampStyle, MessageBuilder, Timestamp,
-    UserId,
+    self as serenity, FormattedTimestamp, FormattedTimestampStyle, Mentionable, MessageBuilder,
+    Timestamp, UserId,
 };
 
 use crate::{
@@ -12,7 +12,6 @@ use crate::{
     time::{get_closest_future_time, get_closest_future_time_12hr},
 };
 
-mod helpful_messages;
 mod regex_matching;
 
 #[tracing::instrument(skip(data, message, ctx))]
@@ -35,12 +34,15 @@ pub async fn translate_time_into_timestamp(
 
     let user_data = data.user_data.read();
 
+    let notz_error = crate::strings::errors::NO_TIME_ZONE
+        .replace("{user}", &message.author.mention().to_string());
+
     if let Some(time) = simple_time {
         let user_data = user_data.await;
         let tz = match get_time_zone(&user_data, &message.author.id).await {
             Some(tz) => tz,
             None => {
-                let _ = helpful_messages::no_time_zone(ctx, message).await;
+                let _ = message.reply(ctx, notz_error).await;
                 return Ok(());
             }
         };
@@ -51,7 +53,7 @@ pub async fn translate_time_into_timestamp(
         let tz = match get_time_zone(&user_data, &message.author.id).await {
             Some(tz) => tz,
             None => {
-                let _ = helpful_messages::no_time_zone(ctx, message).await;
+                let _ = message.reply(ctx, notz_error).await;
                 return Ok(());
             }
         };
@@ -66,13 +68,7 @@ pub async fn translate_time_into_timestamp(
         return Ok(()); // it's not being set, so abort.
     }
 
-    let _ = send_timestamp_message(
-        ctx,
-        message,
-        timestamp,
-        Some("Accuracy is still being worked on, if there's an issue, please @ me."),
-    )
-    .await;
+    let _ = send_timestamp_message(ctx, message, timestamp, None).await;
 
     Ok(())
 }
@@ -90,14 +86,18 @@ async fn send_timestamp_message(
     timestamp: serenity::Timestamp,
     warning: Option<&str>,
 ) -> Result<(), Error> {
-    let response = MessageBuilder::new()
-        .push_line(
-            (FormattedTimestamp::new(timestamp, Some(FormattedTimestampStyle::LongDateTime)))
-                .to_string(),
-        )
-        .push("-# ")
-        .push(warning.unwrap_or_default())
-        .to_string();
+    let mut response = MessageBuilder::new();
+
+    response.push_line(
+        (FormattedTimestamp::new(timestamp, Some(FormattedTimestampStyle::LongDateTime)))
+            .to_string(),
+    );
+
+    if let Some(warning) = warning {
+        response.push("-# ").push(warning);
+    }
+
+    let response: String = response.to_string();
 
     let _ = message.reply(ctx, response).await;
 

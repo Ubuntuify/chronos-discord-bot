@@ -7,7 +7,7 @@ use crate::structs::regex_time::TimeClue;
 #[tracing::instrument(skip(haystack))]
 pub fn match_simple_time(haystack: &String) -> Option<NaiveTime> {
     let regex = Regex::new(
-        "\\s?(?<hr>[0-1]?[0-9]|2[0-3])(?::(?<mm>[0-5][0-9]))?(?::(?<ss>[0-5][0-9]))?\\s?(?<clue>am|pm|nn|mn)?\\s?"
+        r"(?:\s|^)(?:(?<hr>[0-1]?[0-9]|2[0-3])(?::(?<mm>[0-5][0-9]))?(?::(?<ss>[0-5][0-9]))?\s?(?<clue>am|pm|nn|mn)?)"
     )
     .unwrap();
     let captured_string = regex.captures(haystack);
@@ -15,17 +15,23 @@ pub fn match_simple_time(haystack: &String) -> Option<NaiveTime> {
     match captured_string {
         Some(capture) => {
             info!("Found match for potential time format; attempting to parse string.");
-            debug!("Message captured: \"{}\"", &haystack);
+            debug!(
+                "Matched string: \"{}\" from message \"{}\"",
+                &capture[0], &haystack
+            );
 
             let mut hour: u32 = capture["hr"].to_string().parse().unwrap();
+            let mut hour_only = true;
 
             let minute: u32 = capture.name("mm").map_or(0, |x| {
                 let x: String = x.as_str().to_string();
+                hour_only = false;
                 info!("Haystack contains minutes, like %h:%m - parsing further information.");
                 x.parse().unwrap()
             });
             let second = capture.name("ss").map_or(0, |x| {
                 let x: String = x.as_str().to_string();
+                hour_only = false;
                 info!("Haystack contains seconds, like %h:%m:%s - parsing further information.");
                 x.parse().unwrap()
             });
@@ -34,6 +40,7 @@ pub fn match_simple_time(haystack: &String) -> Option<NaiveTime> {
             match (hour <= 12, capture.name("clue")) {
                 (true, Some(clue)) => {
                     let capture: &str = clue.as_str();
+                    hour_only = false;
                     handle_time_clue(capture.try_into().unwrap(), &mut hour).unwrap(); // should be safe
                 }
                 // Check for invalid time, like 23 pm, which wouldn't make sense.
@@ -47,6 +54,13 @@ pub fn match_simple_time(haystack: &String) -> Option<NaiveTime> {
                 (false, None) => {}
             }
 
+            if hour_only {
+                info!(
+                    "No other information found other than hour, possibly only a number found, aborting.."
+                );
+                return None;
+            }
+
             NaiveTime::from_hms_opt(hour, minute, second)
         }
         None => None,
@@ -58,6 +72,10 @@ pub fn match_preposition_time(haystack: &String) -> Option<(NaiveTime, bool)> {
     let regex = Regex::new("(at )(?<hr>[0-1]?[0-9])(?<clue>am|pm|nn)?").unwrap();
 
     if let Some(capture) = regex.captures(haystack) {
+        debug!(
+            "Matched string: \"{}\" from message \"{}\"",
+            &capture[0], &haystack
+        );
         match (&capture.name("hr"), &capture.name("clue")) {
             (Some(hr), Some(clue)) => {
                 let mut hr: u32 = hr.as_str().parse().unwrap();
