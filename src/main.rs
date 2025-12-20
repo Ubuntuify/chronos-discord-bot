@@ -2,16 +2,13 @@ use std::{collections::HashMap, sync::Arc};
 
 use poise::{
     Framework,
-    serenity_prelude::{self as serenity, GuildId, UserId},
+    serenity_prelude::{self as serenity},
 };
 
 use tokio::sync::RwLock;
 use tracing::info;
 
-use crate::{
-    data::Data,
-    structs::data::{GuildData, UserData},
-};
+use crate::data::Data;
 
 extern crate tracing;
 

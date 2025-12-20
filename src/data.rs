@@ -7,15 +7,16 @@ pub use crate::structs::data::Data;
 use std::path::Path;
 
 pub fn get_data_path() -> Box<std::path::Path> {
-    // TODO: add more code for finding other directories on other systems..
-    // This will only work on Linux systems, and not all of them.
+    let key: &str = match cfg!(not(debug_assertions)) {
+        true => "XDG_DATA_HOME",
+        false => "pwd",
+    };
 
-    let paths = std::env::var("XDG_DATA_HOME").unwrap();
-    let path: &std::path::Path = Path::new(&paths);
+    let path = std::env::var(key).unwrap();
 
-    info!("Using data path of {}", &path.to_str().unwrap().to_string());
+    info!("Using data path of {}", &path);
 
-    path.into()
+    Path::new(&path).into()
 }
 
 impl Data {
@@ -23,7 +24,8 @@ impl Data {
     pub async fn initialize_data(&self) -> Result<(), std::io::Error> {
         let path = &self.data_path.to_owned();
 
-        const EMPTY_JSON: &[u8] = "{}".as_bytes();
+        const EMPTY_JSON: &[u8] = "{}".as_bytes(); // this will be written to prevent serialization
+        // errors
 
         let user_data_path = path.join("user_data.json");
 
@@ -34,7 +36,7 @@ impl Data {
             );
 
             let mut file = tokio::fs::File::create_new(&user_data_path).await?;
-            let _ = file.write(EMPTY_JSON).await;
+            let _ = file.write(EMPTY_JSON).await; // make sure it actually exists
         };
 
         self.import_user_data(user_data_path.into()).await

@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 use chrono::Utc;
 use poise::serenity_prelude::{
     self as serenity, FormattedTimestamp, Mentionable, MessageBuilder, UserId,
