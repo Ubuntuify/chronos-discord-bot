@@ -7,13 +7,7 @@ pub use crate::structs::data::Data;
 use std::path::Path;
 
 pub fn get_data_path() -> Box<std::path::Path> {
-    let key: &str = match cfg!(debug_assertions) {
-        true => "XDG_DATA_HOME",
-        false => "PWD",
-    };
-
-    let path = std::env::var(key).unwrap();
-
+    let path = std::env::var("BOT_DATA_PATH").unwrap_or("/app".to_owned());
     info!("Using data path of {}", &path);
 
     Path::new(&path).into()
