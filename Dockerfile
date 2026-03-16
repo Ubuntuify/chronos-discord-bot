@@ -4,6 +4,6 @@ WORKDIR /app
 
 COPY . .
 
-RUN cargo build --release
+RUN cargo build --release --features docker
 
 CMD ["./target/release/chronos-discord-bot"]
