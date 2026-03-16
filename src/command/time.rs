@@ -1,10 +1,15 @@
 use chrono::Utc;
-use poise::serenity_prelude as serenity;
+use chrono_tz::TZ_VARIANTS;
+use poise::serenity_prelude::{self as serenity, MessageBuilder};
 
-mod components;
+pub mod components;
 mod users;
 
-#[poise::command(slash_command, subcommands("set_tz", "sc_stub_get_user_time"))]
+#[poise::command(
+    slash_command,
+    subcommands("set_tz", "sc_stub_get_user_time"),
+    subcommand_required
+)]
 pub async fn time(_ctx: crate::Context<'_>) -> Result<(), crate::Error> {
     Ok(()) // shouldn't ever run anyways, since this is a parent command and can't be invoked
     // through prefix commands
@@ -26,8 +31,23 @@ pub async fn set_tz(
     let timezone: chrono_tz::Tz = match timezone.parse() {
         Ok(tz) => tz,
         Err(_err) => {
-            ctx.reply("Could not parse timezone, please select a timezone.")
-                .await?;
+            let mut response = MessageBuilder::new().push("I can't understand that time zone.");
+            let timezones = TZ_VARIANTS.map(|t| t.to_string().to_owned());
+
+            let similar_timezone: Vec<String> = timezones
+                .iter()
+                .filter(|f| f.contains(&timezone))
+                .map(|f| f.to_owned())
+                .collect();
+
+            if !similar_timezone.is_empty() {
+                response = response
+                    .push(" Did you mean ")
+                    .push_mono_safe(&*similar_timezone[0])
+                    .push("?");
+            };
+
+            ctx.reply(response.to_string()).await?;
 
             return Ok(()); // error handled
         }
@@ -46,6 +66,7 @@ pub async fn set_tz(
 
 #[poise::command(context_menu_command = "What time is it for them?")]
 pub async fn ct_stub_get_time(
+    // context menu stub
     ctx: crate::Context<'_>,
     user: serenity::User,
 ) -> Result<(), crate::Error> {
@@ -57,9 +78,14 @@ pub async fn ct_stub_get_time(
     rename = "user" // rename the slash command
 )]
 pub async fn sc_stub_get_user_time(
+    // slash command stuff, both get handed over to the same logic
     ctx: crate::Context<'_>,
-    user: serenity::User,
+    #[description = "The user you want to get the time of."] user: Option<serenity::User>,
 ) -> Result<(), crate::Error> {
+    let user = match user {
+        Some(user) => user,
+        None => ctx.author().to_owned(),
+    };
     get_time(ctx, user).await
 }
 

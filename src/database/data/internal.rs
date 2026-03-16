@@ -6,7 +6,7 @@ pub fn get_path() -> Box<Path> {
         Path::new("/data").into()
     } else {
         let path = std::env::var("BOT_DATA_PATH").unwrap();
-        info!("using data path {:?}", &path);
+        info!("Using data path: {:?}", &path);
         Path::new(&path).into()
     }
 }

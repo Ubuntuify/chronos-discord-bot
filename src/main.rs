@@ -26,7 +26,7 @@ type Context<'a> = poise::Context<'a, database::data::Data, Error>;
 #[tokio::main]
 #[tracing::instrument]
 async fn main() {
-    let _ = tracing_subscriber::fmt().with_target(false);
+    tracing_subscriber::fmt().init();
 
     let token =
         serenity::Token::from_env("DISCORD_TOKEN").expect("DISCORD_TOKEN not set, aborting!");
@@ -45,6 +45,8 @@ async fn main() {
         ],
         ..Default::default()
     };
+
+    tracing::info!("Seems good to go, launching bot!");
 
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(Box::new(poise::Framework::new(framework_options)))

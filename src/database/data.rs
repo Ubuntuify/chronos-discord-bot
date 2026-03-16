@@ -16,14 +16,20 @@ pub struct Data {
     pub last_saved: Mutex<DateTime<Utc>>,
 }
 
-impl Data {
-    pub fn new() -> Data {
+impl Default for Data {
+    fn default() -> Self {
         Data {
             path: internal::get_path(),
             user: RwLock::new(UserSerdeHashMap(HashMap::new())),
             guild: RwLock::new(GuildSerdeHashMap(HashMap::new())),
             last_saved: Mutex::new(Utc::now()),
         }
+    }
+}
+
+impl Data {
+    pub fn new() -> Data {
+        Data::default()
     }
 
     pub async fn import(&self) {
@@ -35,6 +41,20 @@ impl Data {
         let mut user_data = self.guild.write().await;
         (*user_data).read_from(path.clone()).await;
     }
+
+    pub async fn export(&self) -> Result<(), crate::Error> {
+        let path = &self.path;
+
+        let guild_data = self.guild.read().await;
+        (*guild_data).write_to(path.clone()).await?;
+
+        let user_data = self.guild.read().await;
+        (*user_data).write_to(path.clone()).await?;
+
+        Ok(())
+    }
+
+    pub async fn check_for_save(&self) {}
 }
 
 #[derive(Debug)]
@@ -48,7 +68,7 @@ pub enum DatabaseError {
 pub trait ReadWriteData<'a, T: Serialize + Deserialize<'a> + Clone> {
     /// Writes to disk the struct, must implement trait serde::Serialize;
     #[allow(async_fn_in_trait)]
-    async fn write_to(&self, path: Box<Path>);
+    async fn write_to(&self, path: Box<Path>) -> Result<(), DatabaseError>;
 
     /// This is an inherently dangerous operation, this will overwrite data. You should only be
     /// running this trait when initializing the struct.
@@ -57,7 +77,7 @@ pub trait ReadWriteData<'a, T: Serialize + Deserialize<'a> + Clone> {
     /// erased. There is no merge functionality and should be considered unsafe during operation
     /// of the program.
     #[allow(async_fn_in_trait)]
-    async fn read_from(&mut self, path: Box<Path>);
+    async fn read_from(&mut self, path: Box<Path>) -> Result<(), DatabaseError>;
 }
 
 #[derive(Serialize, Deserialize, Clone)]
