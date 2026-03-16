@@ -28,7 +28,15 @@ impl Data {
     pub async fn import(&self) {}
 }
 
-pub trait ReadWriteData<'a, T: Serialize + Deserialize<'a>> {
+#[derive(Debug)]
+pub enum DatabaseError {
+    WriteError,
+    DeserializeError,
+    SerializeError,
+    ReadError,
+}
+
+pub trait ReadWriteData<'a, T: Serialize + Deserialize<'a> + Clone> {
     /// Writes to disk the struct, must implement trait serde::Serialize;
     async fn write_to(&self, path: Box<Path>);
 
@@ -41,15 +49,15 @@ pub trait ReadWriteData<'a, T: Serialize + Deserialize<'a>> {
     async fn read_from(&mut self, path: Box<Path>);
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct UserSerdeHashMap(HashMap<serenity::UserId, UserData>);
+#[derive(Serialize, Deserialize, Clone)]
+pub struct UserSerdeHashMap(pub HashMap<serenity::UserId, UserData>);
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct UserData {
-    tz: Option<chrono_tz::Tz>,
+    pub tz: chrono_tz::Tz,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct GuildSerdeHashMap(HashMap<serenity::GuildId, UserData>);
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
@@ -57,7 +65,7 @@ pub struct GuildData {
     common_time_zones: Vec<Tz>,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct ChannelSerdeHashMap(HashMap<serenity::ChannelId, UserData>);
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
