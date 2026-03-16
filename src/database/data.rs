@@ -12,7 +12,7 @@ mod internal;
 pub struct Data {
     path: Box<Path>,
     pub user: RwLock<UserSerdeHashMap>,
-
+    pub guild: RwLock<GuildSerdeHashMap>,
     pub last_saved: Mutex<DateTime<Utc>>,
 }
 
@@ -21,11 +21,20 @@ impl Data {
         Data {
             path: internal::get_path(),
             user: RwLock::new(UserSerdeHashMap(HashMap::new())),
+            guild: RwLock::new(GuildSerdeHashMap(HashMap::new())),
             last_saved: Mutex::new(Utc::now()),
         }
     }
 
-    pub async fn import(&self) {}
+    pub async fn import(&self) {
+        let path = &self.path;
+
+        let mut guild_data = self.guild.write().await;
+        (*guild_data).read_from(path.clone()).await;
+
+        let mut user_data = self.guild.write().await;
+        (*user_data).read_from(path.clone()).await;
+    }
 }
 
 #[derive(Debug)]
@@ -38,6 +47,7 @@ pub enum DatabaseError {
 
 pub trait ReadWriteData<'a, T: Serialize + Deserialize<'a> + Clone> {
     /// Writes to disk the struct, must implement trait serde::Serialize;
+    #[allow(async_fn_in_trait)]
     async fn write_to(&self, path: Box<Path>);
 
     /// This is an inherently dangerous operation, this will overwrite data. You should only be
@@ -46,6 +56,7 @@ pub trait ReadWriteData<'a, T: Serialize + Deserialize<'a> + Clone> {
     /// Reads and overwrites data within itself, leaving previous data that was not saved to be
     /// erased. There is no merge functionality and should be considered unsafe during operation
     /// of the program.
+    #[allow(async_fn_in_trait)]
     async fn read_from(&mut self, path: Box<Path>);
 }
 
@@ -58,7 +69,7 @@ pub struct UserData {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct GuildSerdeHashMap(HashMap<serenity::GuildId, UserData>);
+pub struct GuildSerdeHashMap(pub HashMap<serenity::GuildId, UserData>);
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct GuildData {
@@ -66,7 +77,7 @@ pub struct GuildData {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct ChannelSerdeHashMap(HashMap<serenity::ChannelId, UserData>);
+pub struct ChannelSerdeHashMap(pub HashMap<serenity::ChannelId, UserData>);
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ChannelData {

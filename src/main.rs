@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use poise::serenity_prelude::{self as serenity};
 
-use crate::event::handler;
+use crate::database::data::Data;
 
 pub mod command {
     pub mod bot;
@@ -15,6 +17,8 @@ pub mod database {
 pub mod event {
     pub mod handler;
 }
+
+extern crate tracing;
 
 type Error = Box<dyn std::error::Error + Send + Sync>;
 type Context<'a> = poise::Context<'a, database::data::Data, Error>;
@@ -33,15 +37,18 @@ async fn main() {
 
     let framework_options = poise::FrameworkOptions {
         commands: vec![
+            command::bot::register(),
             command::time::time(),
             command::time::set_tz(),
-            command::time::get_time(),
+            command::time::ct_stub_get_time(),
+            command::time::sc_stub_get_user_time(),
         ],
         ..Default::default()
     };
 
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(Box::new(poise::Framework::new(framework_options)))
+        .data(Arc::new(Data::new()))
         .await;
 
     client.unwrap().start().await.unwrap();
