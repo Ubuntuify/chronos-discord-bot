@@ -1,10 +1,11 @@
 use std::{collections::HashMap, path::Path};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use chrono_tz::Tz;
 use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, RwLock};
+use tracing::debug;
 
 mod r#impl;
 mod internal;
@@ -13,7 +14,7 @@ pub struct Data {
     path: Box<Path>,
     pub user: RwLock<UserSerdeHashMap>,
     pub guild: RwLock<GuildSerdeHashMap>,
-    pub last_saved: Mutex<DateTime<Utc>>,
+    last_saved: Mutex<DateTime<Utc>>,
 }
 
 impl Default for Data {
@@ -32,29 +33,52 @@ impl Data {
         Data::default()
     }
 
-    pub async fn import(&self) {
+    pub async fn import(&self) -> Result<(), DatabaseError> {
         let path = &self.path;
 
         let mut guild_data = self.guild.write().await;
-        (*guild_data).read_from(path.clone()).await;
+        (*guild_data).read_from(path.clone()).await?;
 
         let mut user_data = self.guild.write().await;
-        (*user_data).read_from(path.clone()).await;
-    }
-
-    pub async fn export(&self) -> Result<(), crate::Error> {
-        let path = &self.path;
-
-        let guild_data = self.guild.read().await;
-        (*guild_data).write_to(path.clone()).await?;
-
-        let user_data = self.guild.read().await;
-        (*user_data).write_to(path.clone()).await?;
+        (*user_data).read_from(path.clone()).await?;
 
         Ok(())
     }
 
-    pub async fn check_for_save(&self) {}
+    #[tracing::instrument(skip(self))]
+    pub async fn export(&self) -> Result<(), DatabaseError> {
+        let path = &self.path;
+
+        debug!("Acquiring lock to GuildSerdeHashMap...");
+
+        let guild_data = self.guild.read().await;
+        (*guild_data).write_to(path.clone()).await?;
+
+        // write user data
+        let user_data = self.guild.read().await;
+        (*user_data).write_to(path.clone()).await?;
+
+        // Set last write time to now
+        let mut lock = self.last_saved.lock().await;
+        *lock = Utc::now();
+
+        Ok(())
+    }
+
+    pub async fn check_for_save(&self) -> Result<(), DatabaseError> {
+        let duration = Duration::minutes(15);
+
+        let next_save_time = match self.last_saved.try_lock() {
+            Ok(mutex) => *mutex + duration,
+            Err(_) => return Ok(()),
+        };
+
+        if next_save_time > Utc::now() {
+            self.export().await?;
+        };
+
+        Ok(())
+    }
 }
 
 #[derive(Debug)]

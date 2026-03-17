@@ -1,7 +1,14 @@
 use chrono::Utc;
 use chrono_tz::TZ_VARIANTS;
-use poise::serenity_prelude::{self as serenity, MessageBuilder};
+use poise::{
+    CreateReply,
+    serenity_prelude::{
+        self as serenity, CreateEmbed, CreateMessage, FormattedTimestamp, Mentionable,
+        MessageBuilder,
+    },
+};
 
+mod autocomplete;
 pub mod components;
 mod users;
 
@@ -21,12 +28,15 @@ pub async fn set_tz(
     #[description = "The user you want to set the timezone for (defaults to you)."] user: Option<
         serenity::User,
     >,
-    #[description = "Timezone to set"] timezone: String,
+    #[description = "Timezone to set"]
+    #[autocomplete = "autocomplete::autocomplete_tz"]
+    timezone: String,
 ) -> Result<(), crate::Error> {
     let user_id = match user {
         Some(user) => user.id,
         None => ctx.author().id,
     };
+    let embed = serenity::CreateEmbed::new();
 
     let timezone: chrono_tz::Tz = match timezone.parse() {
         Ok(tz) => tz,
@@ -47,7 +57,7 @@ pub async fn set_tz(
                     .push("?");
             };
 
-            ctx.reply(response.to_string()).await?;
+            ctx.reply(response.build()).await?;
 
             return Ok(()); // error handled
         }
@@ -55,11 +65,14 @@ pub async fn set_tz(
 
     users::set_user_tz(&ctx.data(), user_id, &timezone).await?;
 
-    ctx.reply(format!(
+    let embed = embed.description(format!(
         "Successfully set <@{}>'s time zone to `{}`",
         user_id, timezone
-    ))
-    .await?;
+    ));
+
+    let reply = poise::CreateReply::default().embed(embed);
+
+    ctx.send(reply).await?;
 
     Ok(())
 }
@@ -94,12 +107,19 @@ async fn get_time(ctx: crate::Context<'_>, user: serenity::User) -> Result<(), c
         Some(tz) => {
             let now = Utc::now().with_timezone(&tz);
 
-            ctx.reply(format!(
-                "It is currently **{}** for <@{}>.",
-                now.format("%A, %d %B %Y at %r"),
-                user.id
-            ))
-            .await?;
+            let embed = CreateEmbed::new()
+                .field("Current time", FormattedTimestamp::now().to_string(), false)
+                .field(
+                    format!("Current time for {}", user.global_name.unwrap()),
+                    now.format("%A, %d %B %Y at %_I:%M%P").to_string()
+                        + " `"
+                        + &tz.to_string()
+                        + "`",
+                    false,
+                );
+            let reply = CreateReply::default().embed(embed);
+
+            ctx.send(reply).await?;
         }
         None => {
             ctx.reply(format!(
