@@ -113,15 +113,15 @@ pub struct UserData {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct GuildSerdeHashMap(pub HashMap<serenity::GuildId, UserData>);
+pub struct GuildSerdeHashMap(pub HashMap<serenity::GuildId, GuildData>);
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct GuildData {
-    common_time_zones: Vec<Tz>,
+    pub common_time_zones: Vec<Tz>,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct ChannelSerdeHashMap(pub HashMap<serenity::ChannelId, UserData>);
+pub struct ChannelSerdeHashMap(pub HashMap<serenity::ChannelId, ChannelData>);
 
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
 pub struct ChannelData {

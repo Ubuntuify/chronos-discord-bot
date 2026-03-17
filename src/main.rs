@@ -33,15 +33,15 @@ async fn main() {
 
     let intents = serenity::GatewayIntents::DIRECT_MESSAGES
         | serenity::GatewayIntents::GUILD_MESSAGES
+        | serenity::GatewayIntents::GUILDS
         | serenity::GatewayIntents::MESSAGE_CONTENT;
 
     let framework_options = poise::FrameworkOptions {
         commands: vec![
             command::bot::register(),
-            command::time::time(),
+            command::time::get_time(),
             command::time::set_tz(),
-            command::time::ct_stub_get_time(),
-            command::time::sc_stub_get_user_time(),
+            command::guild::guild(),
         ],
         ..Default::default()
     };
