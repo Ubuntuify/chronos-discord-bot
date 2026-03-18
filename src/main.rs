@@ -48,9 +48,12 @@ async fn main() {
 
     tracing::info!("Seems good to go, launching bot!");
 
+    let data = Data::new();
+    data.import().await.unwrap();
+
     let client = serenity::ClientBuilder::new(token, intents)
         .framework(Box::new(poise::Framework::new(framework_options)))
-        .data(Arc::new(Data::new()))
+        .data(Arc::new(data))
         .await;
 
     client.unwrap().start().await.unwrap();

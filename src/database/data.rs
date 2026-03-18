@@ -5,7 +5,7 @@ use chrono_tz::Tz;
 use poise::serenity_prelude as serenity;
 use serde::{Deserialize, Serialize};
 use tokio::sync::{Mutex, RwLock};
-use tracing::debug;
+use tracing::{debug, info};
 
 mod r#impl;
 mod internal;
@@ -54,17 +54,25 @@ impl Data {
         let guild_data = self.guild.read().await;
         (*guild_data).write_to(path.clone()).await?;
 
+        debug!("Acquiring lock to UserSerdeHashMap...");
+
         // write user data
-        let user_data = self.guild.read().await;
+        //
+        let user_data = self.user.read().await;
         (*user_data).write_to(path.clone()).await?;
 
+        debug!("Setting write time to {}", Utc::now());
+
         // Set last write time to now
+        //
         let mut lock = self.last_saved.lock().await;
         *lock = Utc::now();
 
+        info!("Wrote all data to disk at {}.", Utc::now());
         Ok(())
     }
 
+    #[tracing::instrument(skip(self))]
     pub async fn check_for_save(&self) -> Result<(), DatabaseError> {
         let duration = Duration::minutes(15);
 
