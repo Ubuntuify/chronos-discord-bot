@@ -1,5 +1,8 @@
 use chrono::Utc;
-use poise::serenity_prelude::{CreateEmbed, CreateEmbedAuthor, FormattedTimestamp};
+use poise::{
+    CreateReply,
+    serenity_prelude::{CreateEmbed, CreateEmbedAuthor, FormattedTimestamp},
+};
 use tracing::info;
 
 pub mod components;
@@ -11,15 +14,16 @@ pub async fn guild(_ctx: crate::Context<'_>) -> Result<(), crate::Error> {
 }
 
 #[poise::command(slash_command, rename = "time")]
-pub async fn guild_timezones(ctx: crate::Context<'_>) -> Result<(), crate::Error> {
+pub async fn guild_timezones<'a>(ctx: crate::Context<'a>) -> Result<(), crate::Error> {
     let guild_id = ctx.guild_id().unwrap();
 
-    if let Some(common_tzs) = guilds::find_guild_common_tzs(&ctx.data(), guild_id).await {
-        let guild = ctx.guild().unwrap();
-        let guild_icon = guild.icon_url().unwrap();
-        let author = CreateEmbedAuthor::new(&guild.name).icon_url(guild_icon);
+    let mut embed: CreateEmbed;
 
-        let mut embed = CreateEmbed::new()
+    if let Some(common_tzs) = guilds::find_guild_common_tzs(&ctx.data(), guild_id).await {
+        let guild_icon = ctx.guild().unwrap().icon_url().unwrap();
+        let author = CreateEmbedAuthor::new(ctx.guild().unwrap().name.clone()).icon_url(guild_icon);
+
+        embed = CreateEmbed::new()
             .field("Current time", FormattedTimestamp::now().to_string(), false)
             .author(author);
 
@@ -34,13 +38,22 @@ pub async fn guild_timezones(ctx: crate::Context<'_>) -> Result<(), crate::Error
             );
             info!(
                 "Added {} time zone to list to send to guild {}",
-                tz, guild.id
+                tz,
+                ctx.guild_id().unwrap()
             );
         }
+
+        info!(
+            "Completed time zone list for guild {}",
+            ctx.guild_id().unwrap()
+        )
     } else {
-        ctx.reply("❌ There are no common time zones stored in this guild.")
-            .await?;
+        embed = CreateEmbed::new()
+            .description("❌ There are no common time zones stored in this guild.");
     }
 
+    let reply = CreateReply::default().embed(embed);
+
+    ctx.send(reply).await?;
     Ok(())
 }
