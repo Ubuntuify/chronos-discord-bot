@@ -3,9 +3,8 @@ use chrono_tz::TZ_VARIANTS;
 use poise::{
     CreateReply,
     serenity_prelude::{
-        self as serenity, ButtonStyle, CacheHttp, CreateButton, CreateEmbed, CreateEmbedAuthor,
-        CreateInteractionResponseFollowup, CreateMessage, EmbedAuthor, FormattedTimestamp,
-        MessageBuilder, ReactionType,
+        self as serenity, CacheHttp, CreateButton, CreateEmbed, CreateEmbedAuthor,
+        CreateInteractionResponseFollowup, FormattedTimestamp, MessageBuilder, ReactionType,
     },
 };
 
@@ -13,7 +12,11 @@ mod autocomplete;
 pub mod components;
 mod users;
 
-#[poise::command(slash_command, rename = "timeset")]
+#[poise::command(
+    slash_command,
+    rename = "timeset",
+    interaction_context = "Guild|PrivateChannel"
+)]
 pub async fn set_tz<'a>(
     ctx: crate::Context<'a>,
     #[description = "The user you want to set the timezone for (defaults to you)."] user: Option<
@@ -140,7 +143,8 @@ pub async fn set_tz<'a>(
 #[poise::command(
     context_menu_command = "What time is it for them?",
     slash_command,
-    rename = "time" // rename the slash command
+    rename = "time", // rename the slash command
+    interaction_context = "Guild|PrivateChannel"
 )]
 pub async fn get_time(ctx: crate::Context<'_>, user: serenity::User) -> Result<(), crate::Error> {
     match users::find_user_tz(&ctx.data(), user.id).await {

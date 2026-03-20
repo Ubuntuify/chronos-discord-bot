@@ -8,12 +8,17 @@ use tracing::info;
 pub mod components;
 pub mod guilds;
 
-#[poise::command(slash_command, subcommand_required, subcommands("guild_timezones"))]
+#[poise::command(
+    slash_command,
+    subcommand_required,
+    subcommands("guild_timezones"),
+    interaction_context = "Guild"
+)]
 pub async fn guild(_ctx: crate::Context<'_>) -> Result<(), crate::Error> {
     Ok(())
 }
 
-#[poise::command(slash_command, rename = "time")]
+#[poise::command(slash_command, rename = "time", interaction_context = "Guild")]
 pub async fn guild_timezones<'a>(ctx: crate::Context<'a>) -> Result<(), crate::Error> {
     let guild_id = ctx.guild_id().unwrap();
 
